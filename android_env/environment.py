@@ -37,7 +37,7 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
     self._latest_action = {}
     self._latest_observation = {}
     self._latest_extras = {}
-    self._reset_next_step = True
+    # self._reset_next_step = True
     self._is_closed = False
 
     logging.info('Action spec: %s', self.action_spec())
@@ -71,10 +71,10 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
       timestep = timestep._replace(observation=self._latest_observation.copy())
 
     self._latest_action = {}
-    self._reset_next_step = False
+    # self._reset_next_step = False
 
     logging.info('Done resetting AndroidEnv.')
-    logging.info('************* NEW EPISODE *************')
+    # logging.info('************* NEW EPISODE *************')
 
     return timestep
 
@@ -82,8 +82,8 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
     """Takes a step in the environment."""
 
     # Check if it's time to reset the episode.
-    if self._reset_next_step:
-      return self.reset()
+    # if self._reset_next_step:
+    #   return self.reset()
 
     # Execute selected action.
     timestep = self._coordinator.rl_step(action)
@@ -98,9 +98,9 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
 
     self._latest_action = action.copy()
 
-    if timestep.last():
-      self._reset_next_step = True
-      logging.info('************* END OF EPISODE *************')
+    # if timestep.last():
+    #   self._reset_next_step = True
+    #   logging.info('************* END OF EPISODE *************')
 
     return timestep
 
