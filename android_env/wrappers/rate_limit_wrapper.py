@@ -49,7 +49,7 @@ class RateLimitWrapper(base_wrapper.BaseWrapper):
   def __init__(self,
                env: env_interface.AndroidEnvInterface,
                rate: float,
-               sleep_type: SleepType = SleepType.AFTER_WITH_REPEAT):
+               sleep_type: SleepType = SleepType.AFTER):
     """Initializes this wrapper.
 
     Args:
