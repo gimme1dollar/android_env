@@ -112,7 +112,7 @@ class AdbController:
     command = self.command_prefix(include_device_name=device_specific) + args
     command_str = 'adb ' + ' '.join(command[1:])
 
-    n_retries = 2
+    n_retries = 5
     n_tries = 1
     latest_error = None
     while n_tries <= n_retries:
@@ -128,8 +128,8 @@ class AdbController:
         return cmd_output
       except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         logging.exception(
-            'Failed to execute ADB command (try %r of 3): [%s]',
-            n_tries, command_str)
+            f'Failed to execute ADB command (try {n_tries} of {n_retries+1}): {command_str}'
+        )
         if e.stdout is not None:
           logging.error('**stdout**:')
           for line in e.stdout.splitlines():
