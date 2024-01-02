@@ -84,15 +84,21 @@ def _reconnect_on_grpc_error(func):
   """Decorator function for reconnecting to emulator upon grpc errors."""
 
   def wrapper(*args, **kwargs):
-    try:
-      return func(*args, **kwargs)  # pytype: disable=missing-parameter  # always-use-return-annotations
-    except grpc.RpcError:
-      logging.exception('RpcError caught. Reconnecting to emulator...')
-      emu = args[0]  # The first arg of the function is "self"
-      emu._emulator_stub, emu._snapshot_stub = emu._connect_to_emulator(  # pylint: disable=protected-access
-          emu._grpc_port  # pylint: disable=protected-access
-      )
-      return func(*args, **kwargs)  # pytype: disable=missing-parameter  # always-use-return-annotations
+    deadline = 300
+    
+    start_time = time.time()
+    deadline = start_time + deadline
+    while start_time < deadline:
+      try:
+        return func(*args, **kwargs)  # pytype: disable=missing-parameter  # always-use-return-annotations
+      except grpc.RpcError:
+        time.sleep(1)
+        logging.exception(f'RpcError caught. Reconnecting to emulator... ({start_time, deadline})')
+        emu = args[0]  # The first arg of the function is "self"
+        emu._emulator_stub, emu._snapshot_stub = emu._connect_to_emulator(  # pylint: disable=protected-access
+            emu._grpc_port  # pylint: disable=protected-access
+        )
+    return func(*args, **kwargs)  # pytype: disable=missing-parameter  # always-use-return-annotations
 
   return wrapper
 
@@ -193,7 +199,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
           'tmp_dir': tmp_dir,
       })
       self._emulator_launcher_args = emulator_launcher_args
-      logging.info('emulator_launcher_args: %r', self._emulator_launcher_args)
+      logging.debug('emulator_launcher_args: %r', self._emulator_launcher_args)
       self._launcher = emulator_launcher.EmulatorLauncher(
           **self._emulator_launcher_args)
       self._logfile_path = logfile_path or self._launcher.logfile_path()
@@ -256,7 +262,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     except EmulatorCrashError:
       logging.exception('Failed to confirm booted status of emulator.')
 
-    logging.info('Done booting the Android Emulator.')
+    logging.debug('Done booting the Android Emulator.')
 
   def load_state(
       self, request: state_pb2.LoadStateRequest
@@ -279,6 +285,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     """
     assert self._snapshot_stub is not None
     snapshot_name = request.args.get('snapshot_name', _DEFAULT_SNAPSHOT_NAME)
+
     snapshot_list = self._snapshot_stub.ListSnapshots(
         snapshot_service_pb2.SnapshotFilter(
             statusFilter=snapshot_service_pb2.SnapshotFilter.LoadStatus.All
@@ -341,14 +348,14 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
   def _connect_to_emulator(
       self,
       grpc_port: int,
-      timeout_sec: int = 100,
+      timeout_sec: int = 30,
   ) -> tuple[
       emulator_controller_pb2_grpc.EmulatorControllerStub,
       snapshot_service_pb2_grpc.SnapshotServiceStub,
   ]:
     """Connects to an emulator and returns a corresponsing stub."""
 
-    logging.info('Creating gRPC channel to the emulator on port %r', grpc_port)
+    logging.debug('Creating gRPC channel to the emulator on port %r', grpc_port)
     port = f'localhost:{grpc_port}'
     options = [('grpc.max_send_message_length', -1),
                ('grpc.max_receive_message_length', -1)]
@@ -362,7 +369,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
       raise EmulatorBootError(
           'Failed to connect to the emulator.') from grpc_error
 
-    logging.info('Added gRPC channel for the Emulator on port %s', port)
+    logging.debug('Added gRPC channel for the Emulator on port %s', port)
     emulator_controller_stub = (
         emulator_controller_pb2_grpc.EmulatorControllerStub(self._channel)
     )
@@ -370,7 +377,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     return emulator_controller_stub, snapshot_stub
 
   @_reconnect_on_grpc_error
-  def _confirm_booted(self, startup_wait_time_sec: int = 300):
+  def _confirm_booted(self, startup_wait_time_sec: int = 100):
     """Waits until the emulator is fully booted."""
 
     start_time = time.time()
@@ -378,7 +385,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     success = False
     while time.time() < deadline:
       emu_status = self._emulator_stub.getStatus(empty_pb2.Empty())
-      logging.info('Waiting for emulator (%r) to start... (%rms)',
+      logging.debug('Waiting for emulator (%r) to start... (%rms)',
                    self.adb_device_name(), emu_status.uptime)
       if emu_status.booted:
         success = True
@@ -390,11 +397,11 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
       raise EmulatorCrashError(
           f'The emulator failed to boot after {startup_wait_time_sec} seconds')
 
-    logging.info('Done booting the emulator (in %f seconds).', elapsed_time)
-    logging.info('********** Emulator logs **********')
+    logging.debug('Done booting the emulator (in %f seconds).', elapsed_time)
+    logging.debug('********** Emulator logs **********')
     for line in self.get_logs().splitlines():
-      logging.info(line)
-    logging.info('******* End of emulator logs *******')
+      logging.debug(line)
+    logging.debug('******* End of emulator logs *******')
     logging.info('See the full emulator logs at %r', self._logfile_path)
 
   @_reconnect_on_grpc_error
@@ -409,7 +416,6 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
           2 is_down: Whether the finger is touching or not the screen.
           3 identifier: Identifies a particular finger in a multitouch event.
     """
-
     assert self._emulator_stub, 'Emulator stub has not been initialized yet.'
     touch_events = [
         emulator_controller_pb2.Touch(
@@ -459,10 +465,10 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     """Sends a signal to trigger emulator shutdown."""
 
     if self._emulator_stub is None:
-      logging.info('Emulator (%r) is not up.', self.adb_device_name())
+      logging.debug('Emulator (%r) is not up.', self.adb_device_name())
       return
 
-    logging.info('Shutting down the emulator (%r)...', self.adb_device_name())
+    logging.debug('Shutting down the emulator (%r)...', self.adb_device_name())
     self._emulator_stub.setVmState(
         emulator_controller_pb2.VmRunState(
             state=emulator_controller_pb2.VmRunState.RunState.SHUTDOWN))

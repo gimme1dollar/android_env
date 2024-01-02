@@ -34,7 +34,7 @@ class AdbController:
     self._adb_path = os.path.expandvars(config.adb_path)
     self._adb_server_port = str(config.adb_server_port)
     self._default_timeout = config.default_timeout
-    logging.info('adb_path: %r', self._adb_path)
+    # logging.info('adb_path: %r', self._adb_path)
 
     # Unset problematic environment variables. ADB commands will fail if these
     # are set. They are normally exported by AndroidStudio.
@@ -48,7 +48,7 @@ class AdbController:
     self._os_env_vars.update(
         {'HOME': os.path.expandvars(self._os_env_vars.get('HOME', ''))}
     )
-    logging.info('self._os_env_vars: %r', self._os_env_vars)
+    # logging.info('self._os_env_vars: %r', self._os_env_vars)
 
   def command_prefix(self, include_device_name: bool = True) -> list[str]:
     """The command for instantiating an adb client to this server."""
@@ -112,12 +112,12 @@ class AdbController:
     command = self.command_prefix(include_device_name=device_specific) + args
     command_str = 'adb ' + ' '.join(command[1:])
 
-    n_retries = 5
+    n_retries = 4
     n_tries = 1
     latest_error = None
     while n_tries <= n_retries:
       try:
-        logging.info('Executing ADB command: [%s]', command_str)
+        logging.debug('Executing ADB command: [%s]', command_str)
         cmd_output = subprocess.check_output(
             command,
             stderr=subprocess.STDOUT,

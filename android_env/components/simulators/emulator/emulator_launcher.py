@@ -104,7 +104,7 @@ class EmulatorLauncher:
   def launch_emulator_process(self) -> None:
     """Launches the emulator."""
 
-    logging.info('Booting new emulator [%s]', self._emulator_path)
+    logging.debug('Booting new emulator [%s]', self._emulator_path)
 
     # Set necessary environment variables.
     base_lib_dir = self._emulator_path[:-8] + 'lib64/'
@@ -123,7 +123,7 @@ class EmulatorLauncher:
         'ANDROID_EMU_ENABLE_CRASH_REPORTING': '1',
         'SHOW_PERF_STATS': str(1 if self._show_perf_stats else 0),
     }
-    logging.info('extra_env_vars: %s',
+    logging.debug('extra_env_vars: %s',
                  ' '.join(f'{k}={v}' for k, v in extra_env_vars.items()))
     env_vars = dict(os.environ).copy()
     env_vars.update(extra_env_vars)
@@ -151,11 +151,10 @@ class EmulatorLauncher:
         '-no-audio',
         '-show-kernel',
         '-verbose',
-        '-read-only',
+        # '-read-only',
         '-avd',
         self._avd_name,
     ] + grpc_port + run_headless + ports + snapshot + network_args
-    print(command)
     logging.info('Emulator launch command: %s', ' '.join(command))
     # Prepare logfile.
     self._emulator_output = open(self._logfile_path, 'wb')
@@ -170,7 +169,7 @@ class EmulatorLauncher:
   def confirm_shutdown(self) -> None:
     """Shuts down the emulator process."""
     if self._emulator is not None:
-      logging.info('Checking if emulator process has finished...')
+      logging.debug('Checking if emulator process has finished...')
       try:
         self._emulator.wait(timeout=30.0)
       except subprocess.TimeoutExpired:
