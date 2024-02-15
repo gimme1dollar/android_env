@@ -43,9 +43,9 @@ class TaskManager:
       self,
       task: task_pb2.Task,
       max_bad_states: int = 3,
-      dumpsys_check_frequency: int = 150,
+      # dumpsys_check_frequency: int = 150,
       max_failed_current_activity: int = 10,
-      extras_max_buffer_size: int = 100,
+      # extras_max_buffer_size: int = 100,
   ):
     """Controls task-relevant events and information.
 
@@ -63,13 +63,13 @@ class TaskManager:
     """
     self._task = task
     self._max_bad_states = max_bad_states
-    self._dumpsys_check_frequency = dumpsys_check_frequency
+    # self._dumpsys_check_frequency = dumpsys_check_frequency
     self._max_failed_current_activity = max_failed_current_activity
 
     self._lock = threading.Lock()
-    self._extras_max_buffer_size = extras_max_buffer_size
+    # self._extras_max_buffer_size = extras_max_buffer_size
     self._logcat_thread = None
-    self._dumpsys_thread = None
+    # self._dumpsys_thread = None
     self._setup_step_interpreter = None
 
     # Initialize stats.
@@ -123,7 +123,7 @@ class TaskManager:
 
     self._start_logcat_thread(log_stream=log_stream)
     self._logcat_thread.resume()
-    self._start_dumpsys_thread(adb_call_parser_factory())
+    # self._start_dumpsys_thread(adb_call_parser_factory())
     self._start_setup_step_interpreter(adb_call_parser_factory())
 
   def reset_task(self) -> None:
@@ -153,10 +153,10 @@ class TaskManager:
     self._stats['episode_steps'] = 0
 
     self._logcat_thread.line_ready().wait()
-    with self._lock:
-      extras = self._get_current_extras()
+    # with self._lock:
+    #   extras = self._get_current_extras()
 
-    observation['extras'] = extras
+    # observation['extras'] = extras
 
     return dm_env.TimeStep(
         step_type=dm_env.StepType.FIRST,
@@ -166,16 +166,15 @@ class TaskManager:
 
   def rl_step(self, observation: dict[str, Any]) -> dm_env.TimeStep:
     """Performs one RL step."""
-
     self._stats['episode_steps'] += 1
 
     self._logcat_thread.line_ready().wait()
     with self._lock:
       reward = self._get_current_reward()
-      extras = self._get_current_extras()
+      # extras = self._get_current_extras()
       transition_fn = self._determine_transition_fn()
 
-    observation['extras'] = extras
+    # observation['extras'] = extras
 
     return transition_fn(reward=reward, observation=observation)
 
@@ -185,24 +184,24 @@ class TaskManager:
     self._latest_values['reward'] = 0.0
     return reward
 
-  def _get_current_extras(self) -> dict[str, Any]:
-    """Returns task extras accumulated since the last step."""
-    extras = {}
-    for name, values in self._latest_values['extra'].items():
-      extras[name] = np.stack(values)
-    self._latest_values['extra'] = {}
-    return extras
+  # def _get_current_extras(self) -> dict[str, Any]:
+  #   """Returns task extras accumulated since the last step."""
+  #   extras = {}
+  #   for name, values in self._latest_values['extra'].items():
+  #     extras[name] = np.stack(values)
+  #   self._latest_values['extra'] = {}
+  #   return extras
 
   def _determine_transition_fn(self) -> Callable[..., dm_env.TimeStep]:
     """Determines the type of RL transition will be used."""
 
-    # Check if user existed the task
-    if self._dumpsys_thread.check_user_exited():
-      self._increment_bad_state()
-      self._stats['reset_count_user_exited'] += 1
-      logging.warning('User exited the task. Truncating the episode.')
-      logging.info('************* END OF EPISODE *************')
-      return dm_env.truncation
+    # # Check if user existed the task
+    # if self._dumpsys_thread.check_user_exited():
+    #   self._increment_bad_state()
+    #   self._stats['reset_count_user_exited'] += 1
+    #   logging.warning('User exited the task. Truncating the episode.')
+    #   logging.info('************* END OF EPISODE *************')
+    #   return dm_env.truncation
 
     # Check if episode has ended
     if self._latest_values['episode_end']:
@@ -241,14 +240,14 @@ class TaskManager:
     for event_listener in self._logcat_listeners():
       self._logcat_thread.add_event_listener(event_listener)
 
-  def _start_dumpsys_thread(self,
-                            adb_call_parser: adb_call_parser_lib.AdbCallParser):
-    self._dumpsys_thread = dumpsys_thread.DumpsysThread(
-        app_screen_checker=app_screen_checker.AppScreenChecker(
-            adb_call_parser=adb_call_parser,
-            expected_app_screen=self._task.expected_app_screen),
-        check_frequency=self._dumpsys_check_frequency,
-        max_failed_current_activity=self._max_failed_current_activity)
+  # def _start_dumpsys_thread(self,
+  #                           adb_call_parser: adb_call_parser_lib.AdbCallParser):
+  #   self._dumpsys_thread = dumpsys_thread.DumpsysThread(
+  #       app_screen_checker=app_screen_checker.AppScreenChecker(
+  #           adb_call_parser=adb_call_parser,
+  #           expected_app_screen=self._task.expected_app_screen),
+  #       check_frequency=self._dumpsys_check_frequency,
+  #       max_failed_current_activity=self._max_failed_current_activity)
 
   def _stop_logcat_thread(self):
     if self._logcat_thread is not None:
@@ -332,57 +331,57 @@ class TaskManager:
           regexp=re.compile(regexp or 'a^'),
           handler_fn=_episode_end_handler))
 
-    # Extra listeners
-    def _extras_handler(event, match):
-      del event
-      extra_name = match.group('name')
-      extra = match.group('extra')
-      if extra:
-        try:
-          extra = ast.literal_eval(extra)
-        # Except all to avoid unnecessary crashes, only log error.
-        except Exception:  # pylint: disable=broad-except
-          logging.exception('Could not parse extra: %s', extra)
-          # Don't try to process the extra as text; that would probably crash.
-          return
-      else:
-        # No extra value provided for boolean extra. Setting value to True.
-        extra = 1
-      _process_extra(extra_name, extra)
+    # # Extra listeners
+    # def _extras_handler(event, match):
+    #   del event
+    #   extra_name = match.group('name')
+    #   extra = match.group('extra')
+    #   if extra:
+    #     try:
+    #       extra = ast.literal_eval(extra)
+    #     # Except all to avoid unnecessary crashes, only log error.
+    #     except Exception:  # pylint: disable=broad-except
+    #       logging.exception('Could not parse extra: %s', extra)
+    #       # Don't try to process the extra as text; that would probably crash.
+    #       return
+    #   else:
+    #     # No extra value provided for boolean extra. Setting value to True.
+    #     extra = 1
+    #   _process_extra(extra_name, extra)
 
-    for regexp in regexps.extra:
-      listeners.append(logcat_thread.EventListener(
-          regexp=re.compile(regexp or 'a^'),
-          handler_fn=_extras_handler))
+    # for regexp in regexps.extra:
+    #   listeners.append(logcat_thread.EventListener(
+    #       regexp=re.compile(regexp or 'a^'),
+    #       handler_fn=_extras_handler))
 
-    # JSON extra listeners
-    def _json_extras_handler(event, match):
-      del event
-      extra_data = match.group('json_extra')
-      try:
-        extra = dict(json.loads(extra_data))
-      except ValueError:
-        logging.error('JSON string could not be parsed: %s', extra_data)
-        return
-      for extra_name, extra_value in extra.items():
-        _process_extra(extra_name, extra_value)
+    # # JSON extra listeners
+    # def _json_extras_handler(event, match):
+    #   del event
+    #   extra_data = match.group('json_extra')
+    #   try:
+    #     extra = dict(json.loads(extra_data))
+    #   except ValueError:
+    #     logging.error('JSON string could not be parsed: %s', extra_data)
+    #     return
+    #   for extra_name, extra_value in extra.items():
+    #     _process_extra(extra_name, extra_value)
 
-    for regexp in regexps.json_extra:
-      listeners.append(logcat_thread.EventListener(
-          regexp=re.compile(regexp or 'a^'),
-          handler_fn=_json_extras_handler))
+    # for regexp in regexps.json_extra:
+    #   listeners.append(logcat_thread.EventListener(
+    #       regexp=re.compile(regexp or 'a^'),
+    #       handler_fn=_json_extras_handler))
 
-    def _process_extra(extra_name, extra):
-      extra = np.array(extra)
-      with self._lock:
-        latest_extras = self._latest_values['extra']
-        if extra_name in latest_extras:
-          # If latest extra is not flushed, append.
-          if len(latest_extras[extra_name]) >= self._extras_max_buffer_size:
-            latest_extras[extra_name].pop(0)
-          latest_extras[extra_name].append(extra)
-        else:
-          latest_extras[extra_name] = [extra]
-        self._latest_values['extra'] = latest_extras
+    # def _process_extra(extra_name, extra):
+    #   extra = np.array(extra)
+    #   with self._lock:
+    #     latest_extras = self._latest_values['extra']
+    #     if extra_name in latest_extras:
+    #       # If latest extra is not flushed, append.
+    #       if len(latest_extras[extra_name]) >= self._extras_max_buffer_size:
+    #         latest_extras[extra_name].pop(0)
+    #       latest_extras[extra_name].append(extra)
+    #     else:
+    #       latest_extras[extra_name] = [extra]
+    #     self._latest_values['extra'] = latest_extras
 
     return listeners

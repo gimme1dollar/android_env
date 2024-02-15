@@ -52,7 +52,7 @@ class SetupStepInterpreter:
   def interpret(self, setup_steps: Sequence[task_pb2.SetupStep]) -> None:
     """Returns True if parsing and processing `setup_steps` is successful."""
     if setup_steps:
-      logging.info('Executing setup steps: %s', setup_steps)
+      # logging.info('Executing setup steps: %s', setup_steps)
       for step in setup_steps:
         self._process_step_command(step)
       logging.info('Done executing setup steps.')
@@ -64,7 +64,7 @@ class SetupStepInterpreter:
       logging.info('Empty step_cmd')
       return
 
-    logging.info('Executing step_cmd: %r', step_cmd)
+    # logging.info('Executing step_cmd: %r', step_cmd)
     step_type = step_cmd.WhichOneof('step')
     success_condition = step_cmd.success_condition
     success_check = success_condition.WhichOneof('check')

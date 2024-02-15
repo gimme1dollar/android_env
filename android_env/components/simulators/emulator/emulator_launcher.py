@@ -154,6 +154,7 @@ class EmulatorLauncher:
         '-avd',
         self._avd_name,
     ] + grpc_port + run_headless + ports + snapshot + network_args
+    print(command)
     logging.info('Emulator launch command: %s', ' '.join(command))
     # Prepare logfile.
     self._emulator_output = open(self._logfile_path, 'wb')
