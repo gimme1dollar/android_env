@@ -96,7 +96,7 @@ class AdbCallParser:
 
     response = adb_pb2.AdbResponse(status=adb_pb2.AdbResponse.Status.OK)
     command_type = request.WhichOneof('command')
-    logging.info('AdbRequest command type: %s', command_type)
+    logging.debug('AdbRequest command type: %s', command_type)
     if command_type is None:
       response.status = adb_pb2.AdbResponse.Status.UNKNOWN_COMMAND
       response.error_message = 'AdbRequest.command is None.'
@@ -478,7 +478,7 @@ class AdbCallParser:
 
     del request  # Unused.
 
-    logging.info('Getting orientation...')
+    logging.debug('Getting orientation...')
     response = self._handle_dumpsys(
         adb_pb2.AdbRequest(
             dumpsys=adb_pb2.AdbRequest.DumpsysRequest(service='input')),
@@ -505,7 +505,7 @@ class AdbCallParser:
         if skip_next:
           continue
         orientation = surface_orientation.group(1)
-        logging.info('Done getting orientation: %r', orientation)
+        logging.debug('Done getting orientation: %r', orientation)
         response.get_orientation.orientation = int(orientation)
         return response
 

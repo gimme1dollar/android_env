@@ -24,7 +24,7 @@ import re
 import threading
 from typing import Any
 
-from absl import logging
+import logging
 from android_env.components import adb_call_parser as adb_call_parser_lib
 from android_env.components import app_screen_checker
 from android_env.components import dumpsys_thread
@@ -34,7 +34,6 @@ from android_env.components import setup_step_interpreter
 from android_env.proto import task_pb2
 import dm_env
 import numpy as np
-
 
 class TaskManager:
   """Handles all events and information related to the task."""
@@ -95,7 +94,7 @@ class TaskManager:
         'episode_end': False,
     }
 
-    logging.info('Task config: %s', self._task)
+    logging.debug('Task config: %s', self._task)
 
   def stats(self) -> dict[str, Any]:
     """Returns a dictionary of stats.
@@ -151,7 +150,7 @@ class TaskManager:
     """Performs one RL step."""
 
     self._stats['episode_steps'] = 0
-
+    
     self._logcat_thread.line_ready().wait()
     # with self._lock:
     #   extras = self._get_current_extras()
@@ -206,25 +205,25 @@ class TaskManager:
     # Check if episode has ended
     if self._latest_values['episode_end']:
       self._stats['reset_count_episode_end'] += 1
-      logging.info('End of episode from logcat! Ending episode.')
+      logging.debug('End of episode from logcat! Ending episode.')
       return dm_env.termination
 
     # Check if step limit or time limit has been reached
     if self._task.max_episode_steps > 0:
       if self._stats['episode_steps'] > self._task.max_episode_steps:
         self._stats['reset_count_max_duration_reached'] += 1
-        logging.info('Maximum task duration (%r steps) reached. '
+        logging.debug('Maximum task duration (%r steps) reached. '
                      'Truncating the episode.', self._task.max_episode_steps)
         return dm_env.truncation
 
-    if self._task.max_episode_sec > 0.0:
-      task_duration = datetime.datetime.now() - self._task_start_time
-      max_episode_sec = self._task.max_episode_sec
-      if task_duration > datetime.timedelta(seconds=int(max_episode_sec)):
-        self._stats['reset_count_max_duration_reached'] += 1
-        logging.info('Maximum task duration (%r sec) reached. '
-                     'Truncating the episode.', max_episode_sec)
-        return dm_env.truncation
+    # if self._task.max_episode_sec > 0.0:
+    #   task_duration = datetime.datetime.now() - self._task_start_time
+    #   max_episode_sec = self._task.max_episode_sec
+    #   if task_duration > datetime.timedelta(seconds=int(max_episode_sec)):
+    #     self._stats['reset_count_max_duration_reached'] += 1
+    #     logging.info('Maximum task duration (%r sec) reached. '
+    #                  'Truncating the episode.', max_episode_sec)
+    #     return dm_env.truncation
 
     return dm_env.transition
 
@@ -295,7 +294,6 @@ class TaskManager:
 
     # RewardEvent listeners
     for reward_event in regexps.reward_event:
-
       def get_reward_event_handler(reward):
         def _reward_event_handler(event, match):
           del event, match
@@ -307,6 +305,7 @@ class TaskManager:
           regexp=re.compile(reward_event.event or 'a^'),
           handler_fn=get_reward_event_handler(reward_event.reward)))
 
+    '''
     # Score listener
     def _score_handler(event, match):
       del event
@@ -331,57 +330,58 @@ class TaskManager:
           regexp=re.compile(regexp or 'a^'),
           handler_fn=_episode_end_handler))
 
-    # # Extra listeners
-    # def _extras_handler(event, match):
-    #   del event
-    #   extra_name = match.group('name')
-    #   extra = match.group('extra')
-    #   if extra:
-    #     try:
-    #       extra = ast.literal_eval(extra)
-    #     # Except all to avoid unnecessary crashes, only log error.
-    #     except Exception:  # pylint: disable=broad-except
-    #       logging.exception('Could not parse extra: %s', extra)
-    #       # Don't try to process the extra as text; that would probably crash.
-    #       return
-    #   else:
-    #     # No extra value provided for boolean extra. Setting value to True.
-    #     extra = 1
-    #   _process_extra(extra_name, extra)
+    # Extra listeners
+    def _extras_handler(event, match):
+      del event
+      extra_name = match.group('name')
+      extra = match.group('extra')
+      if extra:
+        try:
+          extra = ast.literal_eval(extra)
+        # Except all to avoid unnecessary crashes, only log error.
+        except Exception:  # pylint: disable=broad-except
+          logging.exception('Could not parse extra: %s', extra)
+          # Don't try to process the extra as text; that would probably crash.
+          return
+      else:
+        # No extra value provided for boolean extra. Setting value to True.
+        extra = 1
+      _process_extra(extra_name, extra)
 
-    # for regexp in regexps.extra:
-    #   listeners.append(logcat_thread.EventListener(
-    #       regexp=re.compile(regexp or 'a^'),
-    #       handler_fn=_extras_handler))
+    for regexp in regexps.extra:
+      listeners.append(logcat_thread.EventListener(
+          regexp=re.compile(regexp or 'a^'),
+          handler_fn=_extras_handler))
 
-    # # JSON extra listeners
-    # def _json_extras_handler(event, match):
-    #   del event
-    #   extra_data = match.group('json_extra')
-    #   try:
-    #     extra = dict(json.loads(extra_data))
-    #   except ValueError:
-    #     logging.error('JSON string could not be parsed: %s', extra_data)
-    #     return
-    #   for extra_name, extra_value in extra.items():
-    #     _process_extra(extra_name, extra_value)
+    # JSON extra listeners
+    def _json_extras_handler(event, match):
+      del event
+      extra_data = match.group('json_extra')
+      try:
+        extra = dict(json.loads(extra_data))
+      except ValueError:
+        logging.error('JSON string could not be parsed: %s', extra_data)
+        return
+      for extra_name, extra_value in extra.items():
+        _process_extra(extra_name, extra_value)
 
-    # for regexp in regexps.json_extra:
-    #   listeners.append(logcat_thread.EventListener(
-    #       regexp=re.compile(regexp or 'a^'),
-    #       handler_fn=_json_extras_handler))
+    for regexp in regexps.json_extra:
+      listeners.append(logcat_thread.EventListener(
+          regexp=re.compile(regexp or 'a^'),
+          handler_fn=_json_extras_handler))
 
-    # def _process_extra(extra_name, extra):
-    #   extra = np.array(extra)
-    #   with self._lock:
-    #     latest_extras = self._latest_values['extra']
-    #     if extra_name in latest_extras:
-    #       # If latest extra is not flushed, append.
-    #       if len(latest_extras[extra_name]) >= self._extras_max_buffer_size:
-    #         latest_extras[extra_name].pop(0)
-    #       latest_extras[extra_name].append(extra)
-    #     else:
-    #       latest_extras[extra_name] = [extra]
-    #     self._latest_values['extra'] = latest_extras
-
+    def _process_extra(extra_name, extra):
+      extra = np.array(extra)
+      with self._lock:
+        latest_extras = self._latest_values['extra']
+        if extra_name in latest_extras:
+          # If latest extra is not flushed, append.
+          if len(latest_extras[extra_name]) >= self._extras_max_buffer_size:
+            latest_extras[extra_name].pop(0)
+          latest_extras[extra_name].append(extra)
+        else:
+          latest_extras[extra_name] = [extra]
+        self._latest_values['extra'] = latest_extras
+    '''
+    
     return listeners

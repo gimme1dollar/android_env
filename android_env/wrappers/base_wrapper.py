@@ -31,7 +31,7 @@ class BaseWrapper(env_interface.AndroidEnvInterface):
 
   def __init__(self, env):
     self._env = env
-    logging.info('Wrapping with %s', self.__class__.__name__)
+    logging.debug('Wrapping with %s', self.__class__.__name__)
 
   def reset(self) -> dm_env.TimeStep:
     self._reset_state()

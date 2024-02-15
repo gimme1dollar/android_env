@@ -62,7 +62,7 @@ class _DumpsysNode:
     try:
       return next(x for x in self.children if predicate(x))
     except StopIteration:
-      logging.info('Failed to find child. max_levels: %i.', max_levels)
+      logging.error('Failed to find child. max_levels: %i.', max_levels)
       # Search children.
       if max_levels:
         for child in self.children:

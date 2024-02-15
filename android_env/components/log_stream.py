@@ -33,7 +33,7 @@ class LogStream(metaclass=abc.ABCMeta):
     """Starts log process and returns the stream of logs."""
     for line in self._get_stream_output():
       if self._verbose:
-        logging.info('line: %r', line)
+        logging.debug('line: %r', line)
       if self._should_stream.is_set():
         yield line
 
@@ -51,12 +51,12 @@ class LogStream(metaclass=abc.ABCMeta):
 
   def pause_stream(self) -> None:
     """No lines are yielded while the event is not set."""
-    logging.info('Pausing LogStream.')
+    logging.debug('Pausing LogStream.')
     self._should_stream.clear()
 
   def resume_stream(self) -> None:
     """The stream will continue yielding lines if the event is set."""
-    logging.info('Resuming LogStream.')
+    logging.debug('Resuming LogStream.')
     self._should_stream.set()
 
   def set_log_filters(self, log_filters: Sequence[str]):

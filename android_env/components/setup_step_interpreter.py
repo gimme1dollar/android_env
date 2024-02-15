@@ -55,13 +55,13 @@ class SetupStepInterpreter:
       # logging.info('Executing setup steps: %s', setup_steps)
       for step in setup_steps:
         self._process_step_command(step)
-      logging.info('Done executing setup steps.')
+      logging.debug('Done executing setup steps.')
 
   def _process_step_command(self, step_cmd: task_pb2.SetupStep) -> None:
     """Processes a single step command from a reset or extra setup."""
 
     if not step_cmd:
-      logging.info('Empty step_cmd')
+      logging.debug('Empty step_cmd')
       return
 
     # logging.info('Executing step_cmd: %r', step_cmd)
@@ -162,7 +162,7 @@ class SetupStepInterpreter:
     """Checks that the given package is installed."""
 
     package = check_install.package_name
-    logging.info('Checking if package is installed: [%r]', package)
+    logging.debug('Checking if package is installed: [%r]', package)
 
     request = adb_pb2.AdbRequest(
         package_manager=adb_pb2.AdbRequest.PackageManagerRequest(
@@ -174,7 +174,7 @@ class SetupStepInterpreter:
     while time.time() - start_time < check_install.timeout_sec:
       response = self._adb_call_parser.parse(request)
       if package in response.package_manager.list.items:
-        logging.info('Done confirming that package is installed.')
+        logging.debug('Done confirming that package is installed.')
         return
       time.sleep(0.1)
 

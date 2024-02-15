@@ -22,7 +22,7 @@ import threading
 import time
 from typing import Any
 
-from absl import logging
+import logging
 from android_env.components import action_type as action_type_lib
 from android_env.components import adb_call_parser
 from android_env.components import errors
@@ -47,8 +47,8 @@ class Coordinator:
       num_fingers: int = 1,
       interaction_rate_sec: float = 0.0,
       enable_key_events: bool = False,
-      show_touches: bool = True,
-      show_pointer_location: bool = True,
+      show_touches: bool = False,
+      show_pointer_location: bool = False,
       show_status_bar: bool = False,
       show_navigation_bar: bool = False,
       periodic_restart_time_min: float = 0.0,
@@ -116,7 +116,7 @@ class Coordinator:
     self._latest_observation_time = 0
     self._simulator_start_time = None
 
-    logging.info('Starting the simulator...')
+    logging.debug('Starting the simulator...')
     self._launch_simulator()
 
   def action_spec(self) -> dict[str, dm_env.specs.Array]:
@@ -138,7 +138,6 @@ class Coordinator:
 
     # Skip fetching the orientation if we already have it.
     if not np.all(self._orientation == np.zeros(4)):
-      logging.info('self._orientation already set, not setting it again')
       return
 
     orientation_response = self._adb_call_parser.parse(
@@ -185,9 +184,9 @@ class Coordinator:
 
     if self._periodic_restart_time_min and self._simulator_start_time:
       sim_alive_time = (time.time() - self._simulator_start_time) / 60.0
-      logging.info('Simulator has been running for %f mins', sim_alive_time)
+      logging.debug('Simulator has been running for %f mins', sim_alive_time)
       if sim_alive_time > self._periodic_restart_time_min:
-        logging.info('Maximum alive time reached. Restarting simulator.')
+        logging.critical('Maximum alive time reached. Restarting simulator.')
         self._stats['relaunch_count_periodic'] += 1
         return True
     return False
@@ -215,7 +214,7 @@ class Coordinator:
       if num_tries > max_retries:
         raise errors.TooManyRestartsError(
             'Maximum number of restart attempts reached.') from latest_error
-      logging.info('Simulator launch attempt %d of %d', num_tries, max_retries)
+      logging.debug('Simulator launch attempt %d of %d', num_tries, max_retries)
 
       self._task_manager.stop()
 
@@ -299,7 +298,7 @@ class Coordinator:
   def execute_adb_call(self, call: adb_pb2.AdbRequest) -> adb_pb2.AdbResponse:
     return self._adb_call_parser.parse(call)
 
-  def rl_reset(self) -> dm_env.TimeStep:
+  def rl_reset(self, load_state=False) -> dm_env.TimeStep:
     """Resets the RL episode."""
 
     # Relaunch the simulator if necessary.
@@ -321,7 +320,7 @@ class Coordinator:
 
     # Get data from the simulator.
     simulator_signals = self._gather_simulator_signals()
-
+    
     return self._task_manager.rl_reset(simulator_signals)
 
   def rl_step(self, agent_action: dict[str, np.ndarray]) -> dm_env.TimeStep:
@@ -386,7 +385,6 @@ class Coordinator:
     Args:
       action: action which will get interpreted as a touchscreen event.
     """
-
     try:
       match action['action_type']:
         # If the action is a TOUCH or LIFT, send a touch event to the simulator.
@@ -410,7 +408,7 @@ class Coordinator:
       logging.exception('Unable to execute action. Restarting simulator.')
       self._stats['relaunch_count_execute_action'] += 1
       self._simulator_healthy = False
-
+      
   def _prepare_touch_action(
       self, action: dict[str, np.ndarray]
   ) -> list[tuple[int, int, bool, int]]:
@@ -483,6 +481,7 @@ class Coordinator:
     """
     self._task_manager.stop()
     response = self._simulator.load_state(request)
+    
     self._task_manager.start(
         adb_call_parser_factory=self._create_adb_call_parser,
         log_stream=self._simulator.create_log_stream(),

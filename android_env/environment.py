@@ -40,8 +40,8 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
     # self._reset_next_step = True
     self._is_closed = False
 
-    logging.info('Action spec: %s', self.action_spec())
-    logging.info('Observation spec: %s', self.observation_spec())
+    logging.debug('Action spec: %s', self.action_spec())
+    logging.debug('Observation spec: %s', self.observation_spec())
 
   def __del__(self) -> None:
     self.close()
@@ -57,7 +57,7 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
   def reset(self) -> dm_env.TimeStep:
     """Resets the environment for a new RL episode."""
 
-    logging.info('Resetting AndroidEnv...')
+    logging.debug('AndroidEnv Resetting...')
 
     # Execute a reset. Timestep will be of type FIRST.
     timestep = self._coordinator.rl_reset()
@@ -107,10 +107,10 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
   def close(self) -> None:
     """Cleans up running processes, threads and local files."""
     if not self._is_closed:
-      logging.info('Cleaning up AndroidEnv...')
+      logging.debug('Cleaning up AndroidEnv...')
       if hasattr(self, '_coordinator'):
         self._coordinator.close()
-      logging.info('Done cleaning up AndroidEnv.')
+      logging.debug('Done cleaning up AndroidEnv.')
       self._is_closed = True
 
   # Extensions provided by AndroidEnv.
