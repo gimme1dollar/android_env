@@ -210,7 +210,7 @@ class TaskManager:
 
     # Check if step limit or time limit has been reached
     if self._task.max_episode_steps > 0:
-      if self._stats['episode_steps'] > self._task.max_episode_steps:
+      if self._stats['episode_steps'] >= self._task.max_episode_steps:
         self._stats['reset_count_max_duration_reached'] += 1
         logging.debug('Maximum task duration (%r steps) reached. '
                      'Truncating the episode.', self._task.max_episode_steps)
