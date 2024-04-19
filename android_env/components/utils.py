@@ -14,22 +14,9 @@
 # limitations under the License.
 
 """Utils for AndroidEnv."""
-
-from collections.abc import Sequence
-
 from dm_env import specs
 import numpy as np
 import numpy.typing as np_typing
-
-
-def touch_position_to_pixel_position(
-    touch_position: np.ndarray,
-    width_height: Sequence[int],
-) -> tuple[int, int]:
-  """Maps touch position in [0,1] to the corresponding pixel on the screen."""
-  touch_pixels = (touch_position * width_height).astype(np.int32)
-  cap_idx = lambda v, idx_len: min(v, idx_len - 1)
-  return tuple(map(cap_idx, touch_pixels, width_height))
 
 
 def transpose_pixels(frame: np.ndarray) -> np.ndarray:
